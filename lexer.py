@@ -3,11 +3,7 @@
 ## PeckJ 20121121
 ##
 
-import sys, os
-from pprint import pformat
 from funcparserlib.lexer import make_tokenizer, Token, LexerError
-from funcparserlib.util import pretty_tree
-from collections import namedtuple
 
 ENCODING = 'utf-8'
 
