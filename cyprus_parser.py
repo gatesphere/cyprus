@@ -28,6 +28,7 @@ from funcparserlib.util import pretty_tree
 # symbol         := atom | "!", name, <"!!", name> | "$", [name]
 
 tokval = lambda tok: tok.value
+toktype = lambda type: lambda tok: tok.type == type
 make_number = lambda str: float(str)
 
 class Grouping(object):
@@ -37,23 +38,23 @@ class Grouping(object):
 def parse(tokens):
   
   ## building blocks
-  kw_priority = some(lambda tok: tok.type =="kw_priority") >> tokval
-  kw_probability = some(lambda tok: tok.type == "kw_probability") >> tokval
-  kw_reaction = some(lambda tok: tok.type == "kw_reaction") >> tokval
-  kw_exists = some(lambda tok: tok.type == "kw_exists") >> tokval
-  kw_as = some(lambda tok: tok.type == "kw_as") >> tokval
-  op_tilde = some(lambda tok: tok.type == "op_tilde") >> tokval
-  op_priority_maximal = some(lambda tok: tok.type == "op_priority_maximal") >> tokval
-  op_priority_probability = some(lambda tok: tok.type == "op_priority_probability") >> tokval
-  op_production = some(lambda tok: tok.type == "op_production") >> tokval
-  atom = some(lambda tok: tok.type == "name") >> tokval
-  number = some(lambda tok: tok.type == "number") >> tokval >> make_number
-  dissolve = some(lambda tok: tok.type == "op_dissolve") >> tokval
-  osmose = some(lambda tok: tok.type == "op_osmose") >> tokval
-  env_open = some(lambda tok: tok.type == "env_open") >> tokval
-  env_close = some(lambda tok: tok.type == "env_close") >> tokval
-  membrane_open = some(lambda tok: tok.type == "membrane_open") >> tokval
-  membrane_close = some(lambda tok: tok.type == "membrane_close") >> tokval
+  kw_priority = some(toktype("kw_priority")) >> tokval
+  kw_probability = some(toktype("kw_probability")) >> tokval
+  kw_reaction = some(toktype("kw_reaction")) >> tokval
+  kw_exists = some(toktype("kw_exists")) >> tokval
+  kw_as = some(toktype("kw_as")) >> tokval
+  op_tilde = some(toktype("op_tilde")) >> tokval
+  op_priority_maximal = some(toktype("op_priority_maximal")) >> tokval
+  op_priority_probability = some(toktype("op_priority_probability")) >> tokval
+  op_production = some(toktype("op_production")) >> tokval
+  atom = some(toktype("name")) >> tokval
+  number = some(toktype("number")) >> tokval
+  dissolve = some(toktype("op_dissolve")) >> tokval
+  osmose = some(toktype("op_osmose")) >> tokval
+  env_open = some(toktype("env_open")) >> tokval
+  env_close = some(toktype("env_close")) >> tokval
+  membrane_open = some(toktype("membrane_open")) >> tokval
+  membrane_close = some(toktype("membrane_close")) >> tokval
   
   ## grammar from the bottom up
   name = atom | number
