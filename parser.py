@@ -10,7 +10,7 @@ from funcparserlib.util import pretty_tree
 
 ## grammar
 ##
-## program        := {env}, end
+## program        := {env}
 ## env            := "[", body, "]"
 ## membrane       := "(", body, ")"
 ## body           := <name>, {statement}
