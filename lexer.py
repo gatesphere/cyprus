@@ -1,69 +1,49 @@
 ## cyprus
 ## lexer
-## PeckJ 20121120
+## PeckJ 20121121
 ##
 
-import re, fileinput
+import sys, os
+from pprint import pformat
+from funcparserlib.lexer import make_tokenizer, Token, LexerError
+from funcparserlib.util import pretty_tree
+from collections import namedtuple
 
-tokens = [
-  'KW_EXISTS',
-  'KW_REACTION',
-  'KW_AS',
-  'KW_PRIORITY',
-  'KW_PROBABILITY',
-  'IDENTIFIER',
-  'OP_PRIORITY_MAXIMAL',
-  'OP_PRIORITY_PROBIBILITY',
-  'OP_TILDE',
-  'OP_PRODUCTION',
-  'OP_DISSOLVE',
-  'OP_OSMOSE',
-  'MOD_CATALYST',
-  'MOD_CHARGE_POSITIVE',
-  'MOD_CHARGE_NEGATIVE',
-  'LEFT_BRACKET',
-  'RIGHT_BRACKET',
-  'LEFT_PARENTHESIS',
-  'RIGHT_PARENTHESIS'
-]
-  
-class Token(object):
-  def __init__(self, type, string, start=(0, 0), end=(0, 0), 
-      line='', linenum=0, filename=''):
-    self.type = type
-    self.string = string
-    self.start = start
-    self.end = end
-    self.line = line
-    self.linenum = linenum
-    self.filename = filename
-  
-  def __eq__(self, other):
-    return (self.type, self.string) == (other.type, other.string)
+ENCODING = 'utf-8'
 
-  def __str__(self):
-    return "Token(%s, '%s', %s, %s, '%s', %s, %s)" % (
-      self.type, self.string, self.start, self.end,
-      self.line, self.linenum, self.filename)
+def tokenize(str):
+  'str -> Sequence(Token)'
+  specs = [
+    ('comment',                 (r'//.*',)),
+    ('newline',                 (r'[\r\n]+',)),
+    ('space',                   (r'[ \t\r\n]+',)),
+    ('kw_exists',               (r'exists',)),
+    ('kw_reaction',             (r'reaction',)),
+    ('kw_as',                   (r'as',)),
+    ('kw_priority',             (r'priority',)),
+    ('kw_probability',          (r'probability',)),
+    ('op_priority_maximal',     (r'>>',)),
+    ('op_priority_probability', (r'>',)),
+    ('op_tilde',                (r'~',)),
+    ('op_production',           (r'::',)),
+    ('op_dissolve',             (r'\$.*',)),
+    ('op_osmose',               (r'(!.*!!.*)|(!.*)',)),
+    ('mod_catalyst',            (r'\*',)),
+    ('mod_charge_positive',     (r'\+',)),
+    ('mod_charge_negative',     (r'-',)),
+    ('env_open',                (r'\[',)),
+    ('env_close',               (r'\]',)),
+    ('membrane_open',           (r'\(',)),
+    ('membrane_close',          (r'\)',)),
+    ('number',                  (r'-?(\.[0-9]+)|([0-9]+(\.[0-9]*)?)',)),
+    ('name',                    (r'[A-Za-z\200-\377_][A-Za-z\200-\377_0-9]*',))
+  ]
+  useless = ['comment', 'space', 'newline']
+  t = make_tokenizer(specs)
+  return [x for x in t(str) if x.type not in useless]
 
-## lex
-def lexer(f):
-  linenum = 1
-  tokens = []
-  
-  def lexline(line, linenum, f):
-    ## stub
-    n = 0
-    while n < 1:
-      yield Token('KW_EXISTS', line, line=line, linenum=linenum)
-      n += 1
-  
+def tokenizefile(f):
+  t = []
   for line in open(f, 'r'):
-    tokens.extend(lexline(line, linenum, f))
-    linenum += 1
-  return tokens
-  
-
-if __name__ == '__main__':
-  ts = lexer('test.cyp')
-  for t in ts: print t
+    t.extend(tokenize(line))
+  return t
