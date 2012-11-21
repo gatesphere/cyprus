@@ -5,8 +5,8 @@
 
 import sys
 sys.path.append('..')
-import lexer as lex
+import cyprus_lexer as lexer
 
 if __name__ == '__main__':
-  ts = lex.tokenizefile('test.cyp')
+  ts = lexer.tokenizefile('test.cyp')
   for t in ts: print t
