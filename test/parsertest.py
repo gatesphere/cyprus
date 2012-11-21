@@ -9,6 +9,5 @@ import cyprus_parser as parser
 import cyprus_lexer as lexer
 
 if __name__ == '__main__':
-  tree = parser.parse(lexer.tokenizefile('test.cyp'))
-  print tree
-  #print parser.ptree(tree)
+  tree = parser.parse(lexer.tokenizefile('test.cyp'))  
+  print parser.ptree(tree)

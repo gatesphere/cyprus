@@ -31,30 +31,55 @@ tokval = lambda tok: tok.value
 toktype = lambda type: lambda tok: tok.type == type
 make_number = lambda str: float(str)
 
+def flatten(x):
+  result = []
+  for el in x:
+    if hasattr(el, "__iter__") and not isinstance(el, basestring):
+      result.extend(flatten(el))
+    else:
+      result.append(el)
+  return result
+
 class Grouping(object):
   def __init__(self, kids):
-    self.kids = kids
+    try:
+      self.kids = list(flatten([kids]))
+    except TypeError:
+      self.kids = [kids]
+
+class Program(Grouping):
+  pass
+  
+class Environment(Grouping):
+  pass
+  
+class Membrane(Grouping):
+  pass
+
+
+class Statement(Grouping):
+  pass
 
 def parse(tokens):
   
   ## building blocks
-  kw_priority = some(toktype("kw_priority")) >> tokval
-  kw_probability = some(toktype("kw_probability")) >> tokval
-  kw_reaction = some(toktype("kw_reaction")) >> tokval
-  kw_exists = some(toktype("kw_exists")) >> tokval
-  kw_as = some(toktype("kw_as")) >> tokval
-  op_tilde = some(toktype("op_tilde")) >> tokval
-  op_priority_maximal = some(toktype("op_priority_maximal")) >> tokval
-  op_priority_probability = some(toktype("op_priority_probability")) >> tokval
-  op_production = some(toktype("op_production")) >> tokval
-  atom = some(toktype("name")) >> tokval
-  number = some(toktype("number")) >> tokval
-  dissolve = some(toktype("op_dissolve")) >> tokval
-  osmose = some(toktype("op_osmose")) >> tokval
-  env_open = some(toktype("env_open")) >> tokval
-  env_close = some(toktype("env_close")) >> tokval
-  membrane_open = some(toktype("membrane_open")) >> tokval
-  membrane_close = some(toktype("membrane_close")) >> tokval
+  kw_priority = some(toktype("kw_priority"))
+  kw_probability = some(toktype("kw_probability"))
+  kw_reaction = some(toktype("kw_reaction"))
+  kw_exists = some(toktype("kw_exists"))
+  kw_as = some(toktype("kw_as"))
+  op_tilde = some(toktype("op_tilde"))
+  op_priority_maximal = some(toktype("op_priority_maximal"))
+  op_priority_probability = some(toktype("op_priority_probability"))
+  op_production = some(toktype("op_production"))
+  atom = some(toktype("name"))
+  number = some(toktype("number"))
+  dissolve = some(toktype("op_dissolve"))
+  osmose = some(toktype("op_osmose"))
+  env_open = some(toktype("env_open"))
+  env_close = some(toktype("env_close"))
+  membrane_open = some(toktype("membrane_open"))
+  membrane_close = some(toktype("membrane_close"))
   
   ## grammar from the bottom up
   name = atom | number
@@ -70,16 +95,16 @@ def parse(tokens):
   
   exists = kw_exists + op_tilde + oneplus(name)
   
-  expr = (exists | reaction | priority) >> Grouping
+  expr = (exists | reaction | priority)
   
-  statement = with_forward_decls(lambda: membrane | expr) >> Grouping
+  statement = with_forward_decls(lambda: membrane | expr) >> Statement
   
-  body = name + many(statement) >> Grouping
+  body = maybe(name) + many(statement)
   
-  membrane = (membrane_open + body + membrane_close) >> Grouping
-  env = (env_open + body + env_close) >> Grouping
+  membrane = (skip(membrane_open) + body + skip(membrane_close)) >> Membrane
+  env = (skip(env_open) + body + skip(env_close)) >> Environment
   
-  program = many(env) + skip(finished)
+  program = many(env) + skip(finished) >> Program
   
   return program.parse(tokens)
   
@@ -90,10 +115,15 @@ def ptree(tree):
     else:
       return []
   def show(x):
-    if isinstance(x, Token):
-      return x.pformat()
-    elif isinstance(x, Grouping):
-      return '{}'
+    #print "show(%r)" % x
+    if isinstance(x, Program):
+      return '{Program}'
+    elif isinstance(x, Environment):
+      return '{Environment}'
+    elif isinstance(x, Membrane):
+      return '{Membrane}'
+    elif isinstance(x, Statement):
+      return '{Statement}'
     else:
       return repr(x)
   return pretty_tree(tree, kids, show)
