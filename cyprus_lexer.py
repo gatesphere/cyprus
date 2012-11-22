@@ -39,7 +39,4 @@ def tokenize(str):
   return [x for x in t(str) if x.type not in useless]
 
 def tokenizefile(f):
-  t = []
-  for line in open(f, 'r'):
-    t.extend(tokenize(line))
-  return t
+  return tokenize(open(f, 'r').read())
