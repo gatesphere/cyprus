@@ -58,10 +58,10 @@ if __name__ == '__main__':
     usage()
     sys.exit()
   ptree, pversion, phelp = False, False, False
-  for opt in opts:
-    if opt[0] == '-p':   ptree = True
-    elif opt[0] == '-v': pversion = True
-    elif opt[0] == '-h': phelp = True
+  for opt, a in opts:
+    if   opt == '-p': ptree = True
+    elif opt == '-v': pversion = True
+    elif opt == '-h': phelp = True
   if pversion:
     version()
     sys.exit()
