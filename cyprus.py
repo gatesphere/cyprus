@@ -52,26 +52,24 @@ def version():
 
 if __name__ == '__main__':
   args = sys.argv[1:]
-  optlist = getopt.getopt(args, 'pvh')
-  opts, nonopts = optlist[0], optlist[1]
-  ptree = False
-  pversion = False
-  phelp = False
+  try:
+    opts, args = getopt.getopt(args, 'pvh')
+  except:
+    usage()
+    sys.exit()
+  ptree, pversion, phelp = False, False, False
   for opt in opts:
-    if opt[0] == '-p':
-      ptree = True
-    if opt[0] == '-v':
-      pversion = True
-    if opt[0] == '-h':
-      phelp = True
+    if opt[0] == '-p':   ptree = True
+    elif opt[0] == '-v': pversion = True
+    elif opt[0] == '-h': phelp = True
   if pversion:
     version()
     sys.exit()
-  if len(nonopts) != 1 or phelp:
+  if len(args) != 1 or phelp:
     usage()
     sys.exit()
   
-  filename = nonopts[0]
+  filename = args[0]
   
   if ptree:
     try:
@@ -82,7 +80,6 @@ if __name__ == '__main__':
     sys.exit()
   
   ## actual logic
-  tree = None
   try:
     tree = parser.parse(lexer.tokenizefile(filename))
   except NoParseError as e:
