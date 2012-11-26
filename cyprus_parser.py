@@ -56,7 +56,6 @@ class Environment(Grouping):
 class Membrane(Grouping):
   pass
 
-
 class Statement(Grouping):
   pass
 
