@@ -12,20 +12,52 @@ class CyprusClock(object):
   def __init__(self, envs):
     self._tick = 0
     self.envs = envs
-  
+    
   def tick():
-    _tick += 1
-    for e in envs:
+    self._tick += 1
+    for e in self.envs:
       e.tick()
 
 class CyprusEnvironment(object):
-  pass
+  def __init__(self, name, parent, contents, membranes, rules):
+    self.name = name
+    self.parent = parent
+    self.contents = contents
+    self.membranes = membranes
+    self.rules = rules
+    setpriorities()
+    
+  def setpriorities(self):
+    pass # placeholder
   
+  def dissolve(self):
+    pass # environments cannot dissolve
+
 class CyprusMembrane(CyprusEnvironment):
-  pass
+  def dissolve(self):
+    parent.contents.extend(self.contents)
+    parent.membranes.remove(self)
+
+class CyprusPriority(object):
+  def __init__(self, rule1, rule2, priority):
+    self.rule1 = rule1
+    self.rule2 = rule2
+    self.priority = priority
+  
+  def isMaximal(self):
+    return self.priority == 1.0
   
 class CyprusParticle(object):
-  pass
+  def __init__(self, name, parent, charge=''):
+    self.name = name
+    self.parent = parent
+    self.charge = charge
+    
+  def __str__(self):
+    return "%s%s" % (self.name, self.charge)
+  
+  def __eq__(self, other):
+    return (self.name, self.charge) == (other.name, other.charge)
   
 class CyprusRule(object):
   pass
@@ -34,6 +66,7 @@ class CyprusProgram(object):
   def __init__(self, tree):
     self.clock = CyprusClock(None)  ## placeholder
     self.tree = tree
+    
   def run(self):
     pass
 
