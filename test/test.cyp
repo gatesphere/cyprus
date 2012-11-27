@@ -40,7 +40,6 @@
 // reaction~ = a rule
 // priority~ = assign a weight or a relationship between rules
 //   eg. priority~ c1 >> c2 (c1 maximally chosen over c2)
-//   eg. priority~ c1 > c2 probability .8 (c1 chosen over c2 with probability .8)
 // reaction as somename~ = assign a name to a reaction (for use in priority definitions)
 
 // for the most part, whitespace doesn't matter, except that newlines

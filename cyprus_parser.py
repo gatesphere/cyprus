@@ -19,9 +19,7 @@ from funcparserlib.util import pretty_tree
 # exists         := "exists", "~", name, {name}
 # reaction       := "reaction", <"as", name>, "~", name, {name}, "::",
 #                    {symbol} 
-# priority       := priority_max | priority_prob
-# priority_max   := "priority", "~", name, ">>", name
-# priority_prob  := "priority", "~", name, ">", name, "probability", number
+# priority       := "priority", "~", name, ">>", name
 # name           := number | atom
 # atom           := [A-Za-z], {[A-Za-z0-9]}
 # number         := [0-9], {[0-9]} | {[0-9]}, ".", [0-9], {[0-9]}
@@ -69,12 +67,12 @@ def parse(tokens):
   kw_as = some(toktype("kw_as"))
   op_tilde = some(toktype("op_tilde"))
   op_priority_maximal = some(toktype("op_priority_maximal"))
-  op_priority_probability = some(toktype("op_priority_probability"))
   op_production = some(toktype("op_production"))
   atom = some(toktype("name"))
   number = some(toktype("number"))
   dissolve = some(toktype("op_dissolve"))
   osmose = some(toktype("op_osmose"))
+  osmose_location = some(toktype("op_osmose_location"))
   env_open = some(toktype("env_open"))
   env_close = some(toktype("env_close"))
   membrane_open = some(toktype("membrane_open"))
@@ -82,12 +80,9 @@ def parse(tokens):
   
   ## grammar from the bottom up
   name = atom | number
-  symbol = atom | dissolve | osmose
+  symbol = atom | (dissolve + maybe(name)) | (osmose + name + maybe(osmose_location + name))
   
-  priority_max = kw_priority + op_tilde + name + op_priority_maximal + name
-  priority_prob = (kw_priority + op_tilde + name + op_priority_probability + 
-                  name + kw_probability + number)
-  priority = priority_max | priority_prob
+  priority = kw_priority + op_tilde + name + op_priority_maximal + name
   
   reaction = (kw_reaction + maybe(kw_as + name) + op_tilde + 
              oneplus(name) + op_production + many(symbol))
