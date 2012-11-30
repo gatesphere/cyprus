@@ -6,51 +6,80 @@
 import cyprus_parser as parser
 import cyprus_lexer as lexer
 from funcparserlib.parser import NoParseError
+from funcparserlib.lexer import Token
 import sys, getopt
 
 class CyprusClock(object):
   def __init__(self, envs):
     self._tick = 0
     self.envs = envs
-    
-  def tick():
+  
+  def printstatus(self):
+    for e in self.envs: e.printstatus()
+  
+  def tick(self):
     self._tick += 1
     for e in self.envs:
       e.tick()
 
 class CyprusEnvironment(object):
-  def __init__(self, name, parent, contents, membranes, rules):
+  def __init__(self, name=None, parent=None, contents=[], membranes=[], rules=[]):
     self.name = name
     self.parent = parent
     self.contents = contents
     self.membranes = membranes
+    self.staging_area = []
     self.rules = rules
-    setpriorities()
-    
+    self.setparents()
+    self.setpriorities()
+
+  def printstatus(self, depth=0):
+    spaces = " " * (depth * 2)
+    print '%s[name: %s' % (spaces, self.name)
+    print '%s symbols: %s' % (spaces, self.contents)
+    print '%s Membranes:' % spaces
+    for m in self.membranes:
+      m.printstatus(depth + 1)
+    print '%s]' % spaces
+  
+  def tick(self):
+    for m in self.membranes: m.stage1()
+    for m in self.membranes: m.stage2()
+    self.contents.extend(self.staging_area)
+    self.staging_area = []
+  
   def setpriorities(self):
     pass # placeholder
   
+  def setparents(self):
+    for m in self.membranes: m.parent = self
+  
   def dissolve(self):
     pass # environments cannot dissolve
+
+  def stage1(self):
+    pass # placeholder
+  
+  def stage2(self):
+    pass # placeholder
 
 class CyprusMembrane(CyprusEnvironment):
   def dissolve(self):
     parent.contents.extend(self.contents)
     parent.membranes.remove(self)
-
-class CyprusPriority(object):
-  def __init__(self, rule1, rule2, priority):
-    self.rule1 = rule1
-    self.rule2 = rule2
-    self.priority = priority
   
-  def isMaximal(self):
-    return self.priority == 1.0
+  def printstatus(self, depth=0):
+    spaces = " " * (depth * 4)
+    print '%s(name: %s' % (spaces, self.name)
+    print '%s symbols: %s' % (spaces, self.contents)
+    print '%s Membranes:' % spaces
+    for m in self.membranes:
+      m.printstatus(depth + 1)
+    print '%s)' % spaces
   
 class CyprusParticle(object):
-  def __init__(self, name, parent, charge=''):
+  def __init__(self, name, charge=''):
     self.name = name
-    self.parent = parent
     self.charge = charge
     
   def __str__(self):
@@ -64,11 +93,55 @@ class CyprusRule(object):
 
 class CyprusProgram(object):
   def __init__(self, tree):
-    self.clock = CyprusClock(None)  ## placeholder
     self.tree = tree
+    envs = self.objectify()
+    self.clock = CyprusClock(envs)
+  
+  def objectify(self):
+    out = []
+    for e in self.tree.kids:
+      env = self.buildenvironment(e)
+      out.append(env)
+    return out
     
+  def buildenvironment(self, e, parent=None):
+    name = None
+    contents = []
+    membranes = []
+    rules = []
+    stmts = []
+    for x in e.kids:
+      if isinstance(x, Token):
+        name = x.value
+      if isinstance(x, parser.Statement):
+        stmts.append(self.executestatement(x))
+    stmts = parser.flatten(stmts)
+    print stmts
+    for x in stmts:
+      if isinstance(x, CyprusMembrane):
+        print "MEMBRANE!"
+        membranes.append(x)
+      if isinstance(x, CyprusRule):
+        rules.append(x)
+      if isinstance(x, CyprusParticle):
+        contents.append(x)
+    return CyprusEnvironment(name, parent, contents, membranes, rules)
+  
+  def executestatement(self, stmt):
+    for x in stmt.kids:
+      if isinstance(x, parser.Membrane):
+        return self.buildmembrane(x)
+      
+  def buildmembrane(self, membranee):
+    return CyprusMembrane()
+  
   def run(self):
-    pass
+    self.clock.printstatus()
+    while True:
+      self.clock.tick()
+      self.clock.printstatus()
+      x = raw_input()
+
 
 def usage():
   print "usage: python cyprus.py [-p] <filename.cyp>"
