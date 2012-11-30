@@ -103,8 +103,8 @@ class CyprusProgram(object):
       env = self.buildenvironment(e)
       out.append(env)
     return out
-    
-  def buildenvironment(self, e):
+  
+  def buildcontainer(self, e):
     name = None
     parent = None
     contents = []
@@ -125,36 +125,41 @@ class CyprusProgram(object):
         rules.append(x)
       if isinstance(x, CyprusParticle):
         contents.append(x)
+    return [name, parent, contents, membranes, rules]
+  
+  def buildenvironment(self, e):
+    name, parent, contents, membranes, rules = self.buildcontainer(e)
     return CyprusEnvironment(name, parent, contents, membranes, rules)
   
-  def executestatement(self, stmt):
-    for x in stmt.kids:
-      if isinstance(x, parser.Membrane):
-        return self.buildmembrane(x)
-      
-      
   def buildmembrane(self, e):
-    name = None
-    parent = None
-    contents = []
-    membranes = []
-    rules = []
-    stmts = []
-    for x in e.kids:
-      if isinstance(x, Token):
-        name = x.value
-      if isinstance(x, parser.Statement):
-        stmts.append(self.executestatement(x))
-    stmts = parser.flatten(stmts)
-    print stmts
-    for x in stmts:
-      if isinstance(x, CyprusMembrane):
-        membranes.append(x)
-      if isinstance(x, CyprusRule):
-        rules.append(x)
-      if isinstance(x, CyprusParticle):
-        contents.append(x)
+    name, parent, contents, membranes, rules = self.buildcontainer(e)
     return CyprusMembrane(name, parent, contents, membranes, rules)
+  
+  def executestatement(self, stmt):
+    x = stmt.kids[0]
+    if isinstance(x, parser.Membrane):
+      return self.buildmembrane(x)
+    elif isinstance(x, parser.Token):
+      if x.type == 'kw_exists':
+        return self.buildparticles(stmt)
+      elif x.type == 'kw_reaction':
+        return self.buildrule(stmt)
+      elif x.type == 'kw_priority':
+        self.setpriority(stmt)
+        return None
+      else:
+        print "ERROR: %s" % stmt
+    else:
+      print "ERROR: %s" % stmt
+  
+  def buildparticles(self, stmt):
+    pass
+    
+  def buildrule(self, stmt):
+    pass
+    
+  def setpriority(self, stmt):
+    pass
   
   def run(self):
     self.clock.printstatus()
