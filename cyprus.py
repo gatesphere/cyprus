@@ -43,8 +43,8 @@ class CyprusEnvironment(object):
     print '%s]' % spaces
   
   def tick(self):
-    for m in self.membranes: m.stage1()
-    for m in self.membranes: m.stage2()
+    self.stage1()
+    self.stage2()
     self.contents.extend(self.staging_area)
     self.staging_area = []
   
@@ -104,8 +104,9 @@ class CyprusProgram(object):
       out.append(env)
     return out
     
-  def buildenvironment(self, e, parent=None):
+  def buildenvironment(self, e):
     name = None
+    parent = None
     contents = []
     membranes = []
     rules = []
@@ -119,7 +120,6 @@ class CyprusProgram(object):
     print stmts
     for x in stmts:
       if isinstance(x, CyprusMembrane):
-        print "MEMBRANE!"
         membranes.append(x)
       if isinstance(x, CyprusRule):
         rules.append(x)
@@ -132,8 +132,29 @@ class CyprusProgram(object):
       if isinstance(x, parser.Membrane):
         return self.buildmembrane(x)
       
-  def buildmembrane(self, membranee):
-    return CyprusMembrane()
+      
+  def buildmembrane(self, e):
+    name = None
+    parent = None
+    contents = []
+    membranes = []
+    rules = []
+    stmts = []
+    for x in e.kids:
+      if isinstance(x, Token):
+        name = x.value
+      if isinstance(x, parser.Statement):
+        stmts.append(self.executestatement(x))
+    stmts = parser.flatten(stmts)
+    print stmts
+    for x in stmts:
+      if isinstance(x, CyprusMembrane):
+        membranes.append(x)
+      if isinstance(x, CyprusRule):
+        rules.append(x)
+      if isinstance(x, CyprusParticle):
+        contents.append(x)
+    return CyprusMembrane(name, parent, contents, membranes, rules)
   
   def run(self):
     self.clock.printstatus()
