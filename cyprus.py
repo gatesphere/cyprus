@@ -10,6 +10,7 @@ from funcparserlib.lexer import Token
 import sys, getopt
 
 cyprus_rule_lookup_table = {}
+cyprus_membrane_lookup_table = {}
 
 class CyprusClock(object):
   def __init__(self, envs):
@@ -95,7 +96,40 @@ class CyprusParticle(object):
   
   def __eq__(self, other):
     return (self.name, self.charge) == (other.name, other.charge)
+
+class CyprusDissolveParticle(CyprusParticle):
+  def __init__(self, target=None):
+    self.target = target
+    
+  def __str__(self):
+    if self.target:
+     return "$%s" % self.target
+    else:
+      return "$"
   
+  def __eq__(self, other):
+    if isinstance(other, CyprusDissolveParticle):
+      return other.target == self.target
+    else:
+      return False
+
+class CyprusOsmoseParticle(CyprusParticle):
+  def __init__(self, payload, target=None):
+    self.payload = payload
+    self.target = target
+    
+  def __str__(self):
+    if self.target:
+      return "!%s!!%s" % (self.payload, self.target)
+    else:
+      return "!%s" % self.payload
+  
+  def __eq__(self, other):
+    if isinstance(other, CyprusOsmoseParticle):
+      return (self.target, self.payload) == (other.target, other.payload)
+    else:
+      return False
+
 class CyprusRule(object):
   def __init__(self, name, req, out, pri=1):
     self.name = name
@@ -149,11 +183,17 @@ class CyprusProgram(object):
   
   def buildenvironment(self, e):
     name, parent, contents, membranes, rules = self.buildcontainer(e)
-    return CyprusEnvironment(name, parent, contents, membranes, rules)
+    env = CyprusEnvironment(name, parent, contents, membranes, rules)
+    if name:
+      cyprus_membrane_lookup_table[name] = env
+    return env
   
   def buildmembrane(self, e):
     name, parent, contents, membranes, rules = self.buildcontainer(e)
-    return CyprusMembrane(name, parent, contents, membranes, rules)
+    mem = CyprusMembrane(name, parent, contents, membranes, rules)
+    if name:
+      cyprus_membrane_lookup_table[name] = mem
+    return mem
   
   def executestatement(self, stmt):
     x = stmt.kids[0]
@@ -208,9 +248,9 @@ class CyprusProgram(object):
           continue
       if dissolve:
         if not x:
-          particle = CyprusParticle("$")
+          particle = CyprusDissolveParticle()
         else:
-          particle = CyprusParticle("$%s" % x.value)
+          particle = CyprusDissolveParticle(x.value)
         dissolve = False
       elif osmose:
         if not osmosename:
@@ -218,13 +258,13 @@ class CyprusProgram(object):
           continue
         if osmosename:
           if not x:
-            particle = CyprusParticle("!%s" % osmosename)
+            particle = CyprusOsmoseParticle(osmosename)
             osmose, osmosename, osmoselocation = False, False, False
           elif x.type == 'op_osmose_location':
             continue
           else:
             osmoselocation = x.value
-            particle = CyprusParticle("!%s!!%s" % (osmosename, osmoselocation))
+            particle = CyprusOsmoseParticle(osmosename, osmoselocation)
             osmose, osmosename, osmoselocation = False, False, False
       else:
         particle = CyprusParticle(x.value)
