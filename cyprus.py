@@ -9,12 +9,15 @@ from funcparserlib.parser import NoParseError
 from funcparserlib.lexer import Token
 import sys, getopt
 
+cyprus_rule_lookup_table = {}
+
 class CyprusClock(object):
   def __init__(self, envs):
     self._tick = 0
     self.envs = envs
   
   def printstatus(self):
+    print "Clock tick: %s" % self._tick
     for e in self.envs: e.printstatus()
   
   def tick(self):
@@ -37,6 +40,7 @@ class CyprusEnvironment(object):
     spaces = " " * (depth * 2)
     print '%s[name: %s' % (spaces, self.name)
     print '%s symbols: %s' % (spaces, self.contents)
+    print '%s rules: %s' % (spaces, self.rules)
     print '%s Membranes:' % spaces
     for m in self.membranes:
       m.printstatus(depth + 1)
@@ -72,6 +76,7 @@ class CyprusMembrane(CyprusEnvironment):
     spaces = " " * (depth * 4)
     print '%s(name: %s' % (spaces, self.name)
     print '%s symbols: %s' % (spaces, self.contents)
+    print '%s rules: %s' % (spaces, self.rules)
     print '%s Membranes:' % spaces
     for m in self.membranes:
       m.printstatus(depth + 1)
@@ -85,11 +90,27 @@ class CyprusParticle(object):
   def __str__(self):
     return "%s%s" % (self.name, self.charge)
   
+  def __repr__(self):
+    return self.__str__()
+  
   def __eq__(self, other):
     return (self.name, self.charge) == (other.name, other.charge)
   
 class CyprusRule(object):
-  pass
+  def __init__(self, name, req, out, pri=1):
+    self.name = name
+    self.requirements = req
+    self.output = out
+    self.priority = pri
+  
+  def __str__(self):
+    if self.name != None:
+      return "%s -> %s (%s)[%s])" % (self.requirements, self.output, self.priority, self.name)
+    else:
+      return "%s -> %s (%s)" % (self.requirements, self.output, self.priority)
+  
+  def __repr__(self):
+    return self.__str__()
 
 class CyprusProgram(object):
   def __init__(self, tree):
@@ -117,7 +138,6 @@ class CyprusProgram(object):
       if isinstance(x, parser.Statement):
         stmts.append(self.executestatement(x))
     stmts = parser.flatten(stmts)
-    print stmts
     for x in stmts:
       if isinstance(x, CyprusMembrane):
         membranes.append(x)
@@ -153,13 +173,74 @@ class CyprusProgram(object):
       print "ERROR: %s" % stmt
   
   def buildparticles(self, stmt):
-    pass
+    particles = stmt.kids[2:]
+    out = []
+    for p in particles:
+      out.append(CyprusParticle(p.value))
+    return out
     
   def buildrule(self, stmt):
-    pass
-    
+    name = None
+    req = []
+    out = []
+    pri = 1
+    particulars = stmt.kids[1:]
+    if particulars[0] is None:
+      particulars = particulars [2:]
+    else:
+      name = particulars[1].value
+      particulars = particulars[3:]
+    prod = False
+    dissolve = False
+    osmose = False
+    osmosename = False
+    osmoselocation = False
+    for x in particulars:
+      if x: ## error...
+        if x.type == 'op_production':
+          prod = True
+          continue
+        elif x.type == 'op_dissolve':
+          dissolve = True
+          continue
+        elif x.type == 'op_osmose':
+          osmose = True
+          continue
+      if dissolve:
+        if not x:
+          particle = CyprusParticle("$")
+        else:
+          particle = CyprusParticle("$%s" % x.value)
+        dissolve = False
+      elif osmose:
+        if not osmosename:
+          osmosename = x.value
+          continue
+        if osmosename:
+          if not x:
+            particle = CyprusParticle("!%s" % osmosename)
+            osmose, osmosename, osmoselocation = False, False, False
+          elif x.type == 'op_osmose_location':
+            continue
+          else:
+            osmoselocation = x.value
+            particle = CyprusParticle("!%s!!%s" % (osmosename, osmoselocation))
+            osmose, osmosename, osmoselocation = False, False, False
+      else:
+        particle = CyprusParticle(x.value)
+      if prod: out.append(particle)
+      else: req.append(particle)
+    rule = CyprusRule(name, req, out, pri)
+    if name:
+      cyprus_rule_lookup_table[name] = rule
+    return rule
+        
   def setpriority(self, stmt):
-    pass
+    greater, lesser = stmt.kids[2].value, stmt.kids[4].value
+    greater = cyprus_rule_lookup_table[greater]
+    lesser = cyprus_rule_lookup_table[lesser]
+    if greater.priority <= lesser.priority:
+      greater.priority += 1
   
   def run(self):
     self.clock.printstatus()
