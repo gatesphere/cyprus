@@ -39,9 +39,9 @@ How Cyprus Works
 ----------------
 Cyprus is governed by a single monolithic clock.  All activity within
 all environments occurs in lockstep with the tick of the clock.  Each
-tick, all rules that are applicable within a given container are applied
-maximally, obeying rule priorities.  The clock stops ticking when no more
-rule applications can occur.  At this point, the particles contained by
+tick, all reactions that are applicable within a given container are applied
+maximally, obeying reaction priorities.  The clock stops ticking when no more
+reaction applications can occur.  At this point, the particles contained by
 the environments are interpreted as the final output of the program,
 with everything else left in the system discarded as leftover state.
 
@@ -54,6 +54,9 @@ targeting their container's parent, or a specific membrane by way of names.
 Using named targets, a particle can osmose deeper into nested membranes,
 or pass through multiple containing membranes.  Environments cannot be 
 osmosed through, though particles may osmose over environmental boundaries.
+
+Reaction application is maximal, but non-deterministic: reactions are 
+applied in any valid order which obeys the assigned reaction priorities.
 
 Cyprus is a Turing complete language, though using it for anything other
 than fun and experimentation would be insane.  It is therefore an extremely
