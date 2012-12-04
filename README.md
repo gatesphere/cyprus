@@ -63,9 +63,9 @@ Getting Cyprus
 --------------
 Getting Cyprus is simple:
 
-    1. Ensure you have Python 2.7 installed (not Python 3+!)
-    2. Install funcparser lib with `pip install funcparserlib`
-    3. Clone this repo
+  1. Ensure you have Python 2.7 installed (not Python 3+!)
+  2. Install funcparser lib with `pip install funcparserlib`
+  3. Clone this repo
     
 You've got a working Cyprus distribution now.
 
@@ -175,7 +175,7 @@ Planned features
   - Proper parsing errors
   - Particle and membrane charges
   - Variable membrane permeability
-  - Syntactic sugar for catalysts (reaction~ *x :: x == reaction~ x :: x x)
+  - Syntactic sugar for catalysts (`reaction~ *x :: x` == `reaction~ x :: x x`)
   - Better output
   - More commandline flags (-verbose, etc.)
   - Clean up code (remove globals, comment, etc.)
