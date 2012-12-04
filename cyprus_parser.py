@@ -58,7 +58,6 @@ class Statement(Grouping):
   pass
 
 def parse(tokens):
-  
   ## building blocks
   kw_priority = some(toktype("kw_priority"))
   kw_probability = some(toktype("kw_probability"))
@@ -101,7 +100,8 @@ def parse(tokens):
   program = many(env) + skip(finished) >> Program
   
   return program.parse(tokens)
-  
+
+# pretty print a parse tree
 def ptree(tree):
   def kids(x):
     if isinstance(x, Grouping):

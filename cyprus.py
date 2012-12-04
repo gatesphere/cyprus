@@ -1,17 +1,24 @@
 ## cyprus
 ## language logic and runner
-## PeckJ 20121126
+## PeckJ 20121204
 ##
 
+# python stdlib
 import cyprus_parser as parser
 import cyprus_lexer as lexer
+import sys, getopt
+from random import shuffle
+
+# cyprus stuff
 from funcparserlib.parser import NoParseError
 from funcparserlib.lexer import Token
-import sys, getopt
 
+# global state
 cyprus_rule_lookup_table = {}
 cyprus_membrane_lookup_table = {}
+cyprus_state_rule_applied = True
 
+# the clock, governs the system's operation
 class CyprusClock(object):
   def __init__(self, envs):
     self._tick = 0
@@ -26,6 +33,7 @@ class CyprusClock(object):
     for e in self.envs:
       e.tick()
 
+# An environment - a container object for rules and particles
 class CyprusEnvironment(object):
   def __init__(self, name=None, parent=None, contents=[], membranes=[], rules=[]):
     self.name = name
@@ -42,6 +50,7 @@ class CyprusEnvironment(object):
     print '%s[name: %s' % (spaces, self.name)
     print '%s symbols: %s' % (spaces, self.contents)
     print '%s rules: %s' % (spaces, self.rules)
+    print '%s staging area: %s' % (spaces, self.staging_area)
     print '%s Membranes:' % spaces
     for m in self.membranes:
       m.printstatus(depth + 1)
@@ -54,7 +63,11 @@ class CyprusEnvironment(object):
     self.staging_area = []
   
   def setpriorities(self):
-    pass # placeholder
+    self.ruleranks = {}
+    for rule in self.rules:
+      r = self.ruleranks.get(rule.priority, [])
+      r.append(rule)
+      self.ruleranks[rule.priority] = r
   
   def setparents(self):
     for m in self.membranes: m.parent = self
@@ -62,22 +75,69 @@ class CyprusEnvironment(object):
   def dissolve(self):
     pass # environments cannot dissolve
 
+  def rule_is_applicable(self, rule):
+    counts = set([(s.__str__(), rule.requirements.count(s)) for s in rule.requirements])
+    s_counts = dict([(s.__str__(), self.contents.count(s)) for s in self.contents])
+    for (s, c) in counts:
+      if s_counts.get(s, None) == None or s_counts[s] < c: return False
+    return True
+    
+  def apply_rule(self, rule):
+    global cyprus_state_rule_applied
+    if self.rule_is_applicable(rule):
+      cyprus_state_rule_applied = True
+      for s in rule.requirements: self.contents.remove(s)
+    self.staging_area.extend(rule.output)
+
   def stage1(self):
-    pass # placeholder
+    for m in self.membranes: m.stage1()
+    for p in sorted(self.ruleranks.keys(), reverse=True):
+      rs = self.ruleranks[p]
+      shuffle(rs)
+      for rule in rs:
+        while self.rule_is_applicable(rule):
+          self.apply_rule(rule)
   
   def stage2(self):
-    pass # placeholder
+    global cyprus_membrane_lookup_table
+    for m in self.membranes: m.stage2()
+    self.contents.extend(self.staging_area)
+    self.staging_area = []
+    contentcopy = list(self.contents)
+    for s in contentcopy:
+      if isinstance(s, CyprusDissolveParticle):
+        self.contents.remove(s)
+        if s.target:
+          cyprus_membrane_lookup_table[s.target].dissolve()
+        else:
+          self.dissolve()
+          break
+      if isinstance(s, CyprusOsmoseParticle):
+        self.contents.remove(s)
+        self.remove_a_particle(CyprusParticle(s.payload))
+        if s.target:
+          cyprus_membrane_lookup_table[s.target].contents.append(
+            CyprusParticle(s.payload))
+        else:
+          self.parent.contents.append(CyprusParticle(s.payload))
+
+  def remove_a_particle(self, particle):
+    contentcopy = list(self.contents)
+    for i in contentcopy:
+      if i == particle: self.contents.remove(i)
+      break
 
 class CyprusMembrane(CyprusEnvironment):
   def dissolve(self):
-    parent.contents.extend(self.contents)
-    parent.membranes.remove(self)
+    self.parent.contents.extend(self.contents)
+    self.parent.membranes.remove(self)
   
   def printstatus(self, depth=0):
     spaces = " " * (depth * 4)
     print '%s(name: %s' % (spaces, self.name)
     print '%s symbols: %s' % (spaces, self.contents)
     print '%s rules: %s' % (spaces, self.rules)
+    print '%s staging area: %s' % (spaces, self.staging_area)
     print '%s Membranes:' % spaces
     for m in self.membranes:
       m.printstatus(depth + 1)
@@ -182,6 +242,7 @@ class CyprusProgram(object):
     return [name, parent, contents, membranes, rules]
   
   def buildenvironment(self, e):
+    global cyprus_membrane_lookup_table
     name, parent, contents, membranes, rules = self.buildcontainer(e)
     env = CyprusEnvironment(name, parent, contents, membranes, rules)
     if name:
@@ -189,6 +250,7 @@ class CyprusProgram(object):
     return env
   
   def buildmembrane(self, e):
+    global cyprus_membrane_lookup_table
     name, parent, contents, membranes, rules = self.buildcontainer(e)
     mem = CyprusMembrane(name, parent, contents, membranes, rules)
     if name:
@@ -220,6 +282,7 @@ class CyprusProgram(object):
     return out
     
   def buildrule(self, stmt):
+    global cyprus_rule_lookup_table
     name = None
     req = []
     out = []
@@ -276,6 +339,7 @@ class CyprusProgram(object):
     return rule
         
   def setpriority(self, stmt):
+    global cyprus_rule_lookup_table
     greater, lesser = stmt.kids[2].value, stmt.kids[4].value
     greater = cyprus_rule_lookup_table[greater]
     lesser = cyprus_rule_lookup_table[lesser]
@@ -283,13 +347,13 @@ class CyprusProgram(object):
       greater.priority += 1
   
   def run(self):
+    global cyprus_state_rule_applied
     self.clock.printstatus()
-    while True:
+    while cyprus_state_rule_applied:
+      cyprus_state_rule_applied = False
       self.clock.tick()
       self.clock.printstatus()
-      x = raw_input()
-
-
+      
 def usage():
   print "usage: python cyprus.py [-p] <filename.cyp>"
   print "       python cyprus.py -v"
@@ -299,7 +363,7 @@ def usage():
   print "  -h: display this help text and exit"
   
 def version():
-  print "cyprus version 20121126"
+  print "cyprus version 20121204"
   print "Jacob Peck (suspended-chord)"
   print "http://github.com/gatesphere/cyprus"
 
