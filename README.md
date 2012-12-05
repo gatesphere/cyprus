@@ -81,10 +81,11 @@ Cyprus may be invoked like so:
 But this will give you errors:
 
     $ python cyprus.py
-    usage: python cyprus.py [-p] <filename.cyp>
+    usage: python cyprus.py [-p | -V] <filename.cyp>
            python cyprus.py -v
            python cyprus.py -h
       -p: pretty-print a parse tree and exit
+      -V: display verbose output of the program's execution
       -v: display version info and exit
       -h: display this help text and exit
       
@@ -174,11 +175,7 @@ know about writing Cyprus programs.
 
 Planned features
 ----------------
-  - Proper runtime errors
-  - Proper parsing errors
   - Particle and membrane charges
   - Variable membrane permeability
   - Syntactic sugar for catalysts (`reaction~ *x :: x` == `reaction~ x :: x x`)
-  - Better output
-  - More commandline flags (-verbose, etc.)
   - Clean up code (remove globals, comment, etc.)

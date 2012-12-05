@@ -14,6 +14,7 @@ from funcparserlib.parser import NoParseError
 from funcparserlib.lexer import Token
 
 # global state
+cyprus_version = 20121205
 cyprus_rule_lookup_table = {}
 cyprus_membrane_lookup_table = {}
 cyprus_state_rule_applied = True
@@ -27,6 +28,13 @@ class CyprusClock(object):
   def printstatus(self):
     print "Clock tick: %s" % self._tick
     for e in self.envs: e.printstatus()
+  
+  def printfinalcontents(self):
+    for e in self.envs:
+      if e.name:
+        print "%s: %s" % (e.name, e.contents)
+      else:
+        print "Unnamed env %d: %s" % (self.envs.index(e), e.contents)
   
   def tick(self):
     self._tick += 1
@@ -89,6 +97,7 @@ class CyprusEnvironment(object):
       for s in rule.requirements: self.contents.remove(s)
     self.staging_area.extend(rule.output)
 
+  ## apply all rules maximally, non-deterministically
   def stage1(self):
     for m in self.membranes: m.stage1()
     for p in sorted(self.ruleranks.keys(), reverse=True):
@@ -98,6 +107,7 @@ class CyprusEnvironment(object):
         while self.rule_is_applicable(rule):
           self.apply_rule(rule)
   
+  ## apply changes from stage 1, including dissolutions and osmosis
   def stage2(self):
     global cyprus_membrane_lookup_table
     for m in self.membranes: m.stage2()
@@ -108,29 +118,36 @@ class CyprusEnvironment(object):
       if isinstance(s, CyprusDissolveParticle):
         self.contents.remove(s)
         if s.target:
+          if not cyprus_membrane_lookup_table.get(s.target, None):
+            msg = "ERROR: No containers defined with name '%s'" % s.target
+            raise CyprusException(msg)
           cyprus_membrane_lookup_table[s.target].dissolve()
         else:
           self.dissolve()
           break
       if isinstance(s, CyprusOsmoseParticle):
         self.contents.remove(s)
-        self.remove_a_particle(CyprusParticle(s.payload))
         if s.target:
+          if not cyprus_membrane_lookup_table.get(s.target, None):
+            msg = "ERROR: No containers defined with name '%s'" % s.target
+            raise CyprusException(msg)
           cyprus_membrane_lookup_table[s.target].contents.append(
             CyprusParticle(s.payload))
-        else:
+        elif self.parent:
           self.parent.contents.append(CyprusParticle(s.payload))
-
-  def remove_a_particle(self, particle):
-    contentcopy = list(self.contents)
-    for i in contentcopy:
-      if i == particle: self.contents.remove(i)
-      break
+        else: # environments cannot be osmosed through
+          self.contents.append(s)
 
 class CyprusMembrane(CyprusEnvironment):
   def dissolve(self):
     self.parent.contents.extend(self.contents)
     self.parent.membranes.remove(self)
+    self.parent.membranes.extend(self.membranes)
+    self.contents = []
+    self.staging_area = []
+    self.rules = []
+    if self.name:
+      del(cyprus_membrane_lookup_table[self.name])
   
   def printstatus(self, depth=0):
     spaces = " " * (depth * 4)
@@ -206,6 +223,10 @@ class CyprusRule(object):
   def __repr__(self):
     return self.__str__()
 
+class CyprusException(Exception):
+  def __init__(self, message):
+    self.message = message
+
 class CyprusProgram(object):
   def __init__(self, tree):
     self.tree = tree
@@ -246,6 +267,9 @@ class CyprusProgram(object):
     name, parent, contents, membranes, rules = self.buildcontainer(e)
     env = CyprusEnvironment(name, parent, contents, membranes, rules)
     if name:
+      if cyprus_membrane_lookup_table.get(name, None):
+        msg = "ERROR: Multiple containers defined with name '%s'" % name
+        raise CyprusException(msg)
       cyprus_membrane_lookup_table[name] = env
     return env
   
@@ -254,6 +278,9 @@ class CyprusProgram(object):
     name, parent, contents, membranes, rules = self.buildcontainer(e)
     mem = CyprusMembrane(name, parent, contents, membranes, rules)
     if name:
+      if cyprus_membrane_lookup_table.get(name, None):
+        msg = "ERROR: Multiple containers defined with name '%s'" % name
+        raise CyprusException(msg)
       cyprus_membrane_lookup_table[name] = mem
     return mem
   
@@ -335,48 +362,61 @@ class CyprusProgram(object):
       else: req.append(particle)
     rule = CyprusRule(name, req, out, pri)
     if name:
+      if cyprus_rule_lookup_table.get(name, None):
+        msg = "ERROR: Multiple reactions defined with name '%s'" % name
+        raise CyprusException(msg)
       cyprus_rule_lookup_table[name] = rule
     return rule
         
   def setpriority(self, stmt):
     global cyprus_rule_lookup_table
-    greater, lesser = stmt.kids[2].value, stmt.kids[4].value
-    greater = cyprus_rule_lookup_table[greater]
-    lesser = cyprus_rule_lookup_table[lesser]
+    greatern, lessern = stmt.kids[2].value, stmt.kids[4].value
+    greater = cyprus_rule_lookup_table.get(greatern, None)
+    lesser = cyprus_rule_lookup_table.get(lessern, None)
+    if not greater:
+      msg = "ERROR: No reactions defined with name '%s'" % greatern
+      raise CyprusException(msg)
+    if not lesser:
+      msg = "ERROR: No reactions defined with name '%s'" % lessern
+      raise CyprusException(msg)
     if greater.priority <= lesser.priority:
       greater.priority += 1
   
-  def run(self):
+  def run(self, verbose=False):
     global cyprus_state_rule_applied
-    self.clock.printstatus()
+    if verbose: self.clock.printstatus()
     while cyprus_state_rule_applied:
       cyprus_state_rule_applied = False
       self.clock.tick()
-      self.clock.printstatus()
+      if verbose: self.clock.printstatus()
+    self.clock.printfinalcontents()
       
 def usage():
-  print "usage: python cyprus.py [-p] <filename.cyp>"
+  print "usage: python cyprus.py [-p | -V] <filename.cyp>"
   print "       python cyprus.py -v"
   print "       python cyprus.py -h"
   print "  -p: pretty-print a parse tree and exit"
+  print "  -V: display verbose output of the program's execution"
   print "  -v: display version info and exit"
   print "  -h: display this help text and exit"
   
 def version():
-  print "cyprus version 20121204"
+  global cyprus_version
+  print "cyprus version %s" % cyprus_version
   print "Jacob Peck (suspended-chord)"
   print "http://github.com/gatesphere/cyprus"
 
 if __name__ == '__main__':
   args = sys.argv[1:]
   try:
-    opts, args = getopt.getopt(args, 'pvh')
+    opts, args = getopt.getopt(args, 'pVvh')
   except:
     usage()
     sys.exit()
-  ptree, pversion, phelp = False, False, False
+  ptree, pversion, phelp, pverbose = False, False, False, False
   for opt, a in opts:
     if   opt == '-p': ptree = True
+    elif opt == "-V": pverbose = True
     elif opt == '-v': pversion = True
     elif opt == '-h': phelp = True
   if pversion:
@@ -403,7 +443,10 @@ if __name__ == '__main__':
     print "Could not parse file:"
     print e.msg
     sys.exit()
-  tree = CyprusProgram(tree)
-  tree.run()
+  try:
+    tree = CyprusProgram(tree)
+    tree.run(verbose=pverbose)
+  except CyprusException as e:
+    print e.message
   
   sys.exit()
